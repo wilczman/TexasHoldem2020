@@ -1,4 +1,4 @@
-import itertools
+﻿import itertools
 import pdb
 import random
 import os
@@ -27,7 +27,11 @@ class player:
     
     def __init__(self):
         self.name=input('Chose your name: ')
-        self.cash=int(input('How much cash do you have? '))
+        while True:
+            opt=input('How much cash do you have? ')
+            if opt.isnumeric and opt.isalnum : break
+            else : continue
+        self.cash=int(opt)
         self.cards=[0,0]
         player.num_of_players += 1
         self.active=True
@@ -203,15 +207,33 @@ def jury(players):
     deque_of_cards.print_cards(table.cards_on_table)
     for i in range (player.num_of_players):
         if players[i].active==True :
-            print(f"Player ({i}) {players[i].name}'s cards: ",end='')
+            print(f"{players[i].name}'s cards: ",end='')
             deque_of_cards.print_cards(players[i].cards)
-    print('Who won?: ',end='')   
-    while True:
-        opt=input('Choose: ')
-        if opt in list(range(player.numb_of_players)): break
-        else: continue
-    print(f'{players[opt].name} won! Congratulations')                   
+    table_score=ai_jury(table.cards_on_table)
+    named_results=[]
+    players_score=[]
+    for i in range (player.num_of_players):
+        if players[i].active==True :
+            result=ai_jury(table.cards_on_table+players[i].cards)
+            named_results.append(result[1])
+            players_score.append(result[0])
+        else:
+            named_results.append(0)
+            players_score.append(0)
+    opt=players_score.index(max(players_score))
+
+    #print('Who won?: ',end='')   
+   # while True:
+   #     opt=input('Choose: ')
+   #     if opt in list(range(player.numb_of_players)): break
+    #    else: continue
+
+    if table_score[0]>=players_score[opt] :
+       print(f'It is a match, sorry, you need to share. There was {table_score[1]} on the table')
+    else:
+        print(f'{players[opt].name} won {player.stake}$ with {named_results[opt]} \nCongratulations')
     players[opt].cash+=player.stake   
+    #pdb.set_trace()
 
 def importantDecisions():
     print('1.Want to play again?')
@@ -221,14 +243,156 @@ def importantDecisions():
         if opt in ['1','2'] : break
         else: continue
     if   opt=='1':
-        deque_of_cards.deque = list(itertools.product(list1, list2))
+        deque_of_cards.deque = list(itertools.product(deque_of_cards.list1, deque_of_cards.list2))
         player.stake=0
         for i in range(player.num_of_players):
             players[i].active=True 
     elif opt=='2':
         import sys
         sys.exit()
-        
-while True:
-   game() 
 
+def ai_jury(arg):
+    flattened_cards_on_table_symbols=flatten_symbols(arg)
+    flattened_cards_on_table_values=flatten_values(arg)
+
+    tab = check_royal_flush(flattened_cards_on_table_symbols)
+    if tab[0] : return tab[1],'ROYAL FLUSH!!!'
+    tab = check_straight_flush(flattened_cards_on_table_values,flattened_cards_on_table_symbols) 
+    if tab[0] : return tab[1],'Straight Flush!!!'
+    tab=check_4(flattened_cards_on_table_values)
+    if tab[0] : return tab[1],'Four of a kind!'
+    tab=check_full(flattened_cards_on_table_values)
+    if tab[0] : return tab[1],'Full'
+    tab=check_color(flattened_cards_on_table_values)
+    if tab[0] : return tab[1],'Flush'
+    tab=check_straight(flattened_cards_on_table_values)
+    if tab[0] : return tab[1],'Straight'
+    tab=check_3(flattened_cards_on_table_values)
+    if tab[0] : return tab[1],'Three of a kind'
+    tab=check_2x2(flattened_cards_on_table_values)
+    if tab[0] : return tab[1],'Two pairs'
+    tab=check_2(flattened_cards_on_table_values)
+    if tab[0] : return tab[1],'Pair'
+    tab=check_high_card(flattened_cards_on_table_values)
+    return tab,'High card'
+
+def check_royal_flush(cards):
+    if (set((map(lambda card:card in cards,['10','J','Q','K','A']))))=={True} and check_color(cards)[0]==True:
+        return True,100000
+    else:
+        return False,0
+
+def check_straight_flush(cards_values,cards_symbols):
+    if check_straight(cards_values)[0]==True and check_color(cards_symbols)[0]==True:
+        return True,1000
+    else:
+        return False,0    
+    
+def check_4(cards):
+    for card in cards:
+        if cards.count(card) == 4 :
+            high=check_high_card(list(card))
+            return True,high+600
+    return False,0
+
+def check_full(cards):
+    value=check_2(cards)+check_3(cards)
+    if value[0]==2  : 
+        return True,value[1]+300
+    else: 
+        return False,0
+
+def check_color(cards): #take flattened_cards_symbols
+    for card in cards:
+        if cards.count(card) == 5 :
+            high=check_high_card(list(card))
+            return True,100+high
+    return False,0
+
+def check_straight(cards) :
+    if (set((map(lambda card:card in cards,['10','J','Q','K','A']))))=={True} : return True,80+14
+    elif (set((map(lambda card:card in cards,['9','10','J','Q','K',]))))=={True}:return True,80+13
+    elif (set((map(lambda card:card in cards,['8','9','10','J','Q']))))=={True}:return True,80+12
+    elif (set((map(lambda card:card in cards,['7','8','9','10','J']))))=={True}:return True,80+11
+    elif (set((map(lambda card:card in cards,['6','7','8','9','10']))))=={True}:return True,80+10
+    elif (set((map(lambda card:card in cards,['5','6','7','8','9']))))=={True}:return True,80+9
+    elif (set((map(lambda card:card in cards,['4','5','6','7','8']))))=={True}:return True,80+8
+    elif (set((map(lambda card:card in cards,['3','4','5','6','7']))))=={True}:return True,80+7
+    elif (set((map(lambda card:card in cards,['2','3','4','5','6']))))=={True}:return True,80+6
+    elif (set((map(lambda card:card in cards,['A','2','3','4','5']))))=={True}:return True,80+5
+    else:
+        return False,0
+
+def check_3(cards):
+    for card in cards:
+        if cards.count(card) == 3 :
+            high=check_high_card(list(card))
+            return True,60+high
+    return False,0
+
+def check_2x2(cards):
+    counter=[]
+    high=0
+    for card in cards:
+        if cards.count(card) == 2 :
+            counter.append(1)
+            if high<check_high_card(list(card)):
+                high=check_high_card(list(card))
+    if len(counter)==4:
+        return True,high+40
+    else : return False,0
+
+def check_2(cards):
+    for card in cards:
+        if cards.count(card) == 2 :
+            high=check_high_card(list(card))
+            return True,high+20
+    return False,0
+
+def check_high_card(cards):
+
+    if 'A' in cards : 
+        high=14
+    elif 'K' in cards : 
+        high=13
+    elif 'Q' in cards : 
+        high=12
+    elif 'J' in cards : 
+        high=11
+    elif '10' in cards : 
+        high=10
+    elif '9' in cards : 
+        high=9
+    elif '8' in cards : 
+        high=8
+    elif '7' in cards : 
+        high=7
+    elif '6' in cards : 
+        high=6
+    elif '5' in cards : 
+        high=5
+    elif '4' in cards : 
+        high=4                   
+    elif '3' in cards : 
+        high=3
+    else : 
+        high=2
+    return high
+
+
+
+
+def flatten_symbols(cards):
+    flattened_cards=[]
+    for card in cards:
+        flattened_cards.append(card[0])
+    return flattened_cards
+
+def flatten_values(cards):
+    flattened_cards=[]
+    for card in cards:
+        flattened_cards.append(card[1])
+    return flattened_cards
+
+while True:
+   game()
